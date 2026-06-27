@@ -124,14 +124,14 @@ def score_voice_stability(f0_series, rms_series) -> SubSkillScore:
     rms = np.asarray(rms_series, dtype=float)
     f0_voiced = f0[f0 > 0]
 
-    if f0_voiced.size == 0 or not np.any(rms > 0):
+    if f0_voiced.size == 0 or not np.any(rms > 1e-9):
         return SubSkillScore("voice_stability", 0.0, ScoreSource.AUDIO, {"reason": "silence"})
 
     def _cv(a):
         mean = float(np.mean(a))
         return float(np.std(a) / mean) if mean > 1e-9 else 1.0
 
-    mean_cv = 0.5 * _cv(f0_voiced) + 0.5 * _cv(rms[rms > 0])
+    mean_cv = 0.5 * _cv(f0_voiced) + 0.5 * _cv(rms[rms > 1e-9])
     score = 10.0 * (1.0 - min(1.0, mean_cv))
     return SubSkillScore("voice_stability", clamp_score(score), ScoreSource.AUDIO, {"cv": round(mean_cv, 3)})
 
@@ -141,13 +141,18 @@ def score_voice_stability(f0_series, rms_series) -> SubSkillScore:
 _MIN_WORDS = 12  # below this the transcript is too thin to judge impact
 
 
+def _sanitize_segment(text: str, max_chars: int = 500) -> str:
+    """Truncate and bracket untrusted transcript text to contain prompt injection."""
+    return f"<transcript>{text[:max_chars]}</transcript>"
+
+
 def _impact_prompt(opening: str, closing: str) -> str:
     return (
         "You are a public-speaking coach. Rate the IMPACT of a talk's opening and "
         "closing on a 0-10 scale (10 = memorable, audience-grabbing).\n"
         "Return ONLY a JSON object, no markdown, no prose: "
         '{"score": <number 0-10>, "justification": "<one sentence>"}\n\n'
-        f"OPENING: {opening}\n\nCLOSING: {closing}"
+        f"OPENING: {_sanitize_segment(opening)}\n\nCLOSING: {_sanitize_segment(closing)}"
     )
 
 

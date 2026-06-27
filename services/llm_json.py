@@ -11,8 +11,9 @@ from __future__ import annotations
 import json
 import re
 
-# Matches a leading ```/```json fence or a trailing ``` fence.
-_FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
+# \A/\Z are absolute anchors (unaffected by re.MULTILINE), preventing ReDoS
+# on adversarial LLM output that repeats fence-like sequences.
+_FENCE = re.compile(r"\A\s*```(?:json)?\s*|\s*```\s*\Z", re.IGNORECASE)
 
 
 class LLMOutputError(Exception):

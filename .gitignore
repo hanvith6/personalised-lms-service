@@ -6,6 +6,8 @@ htmlcov/
 # transient pipeline artifacts (never store raw video/frames/audio as records)
 *.mp4
 *.wav
+*.webm
+*.ogv
 frames/
 sample_clip*
 .ipynb_checkpoints/

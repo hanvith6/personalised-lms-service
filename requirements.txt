@@ -1,0 +1,24 @@
+# ============================================================================
+# Installed on GOOGLE COLAB ONLY. Do NOT `pip install` this on the local Mac
+# (M2 Air, 8GB) — torch/ultralytics/whisper/transformers are multi-GB. The
+# local pytest suite needs only `pytest` + `numpy`, which are already present.
+# See README.md "Storage rule".
+# ============================================================================
+
+# --- Heavy pipeline (Colab GPU) ---
+ultralytics==8.3.0          # YOLOv8-pose
+openai-whisper==20231117    # speech-to-text
+librosa==0.10.2.post1       # audio features (WPM, f0, RMS)
+ffmpeg-python==0.2.0        # frame/audio extraction wrapper
+transformers==4.44.2        # Qwen2.5-3B-Instruct
+torch==2.4.1                # transformers backend
+accelerate==0.34.2          # device_map for the LLM
+soundfile==0.12.1           # audio IO
+
+# --- Shared (Colab + local) ---
+numpy==1.26.4
+matplotlib==3.9.2
+requests==2.32.3
+
+# --- Local test deps ---
+pytest==8.4.1

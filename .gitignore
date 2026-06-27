@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+# transient pipeline artifacts (never store raw video/frames/audio as records)
+*.mp4
+*.wav
+frames/
+sample_clip*
+.ipynb_checkpoints/

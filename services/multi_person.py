@@ -114,6 +114,36 @@ def split_tracks(
     return result
 
 
+def assemble_tracks(
+    frame_records: list[dict[int, dict]],
+    min_frames: int = DEFAULT_MIN_FRAMES,
+) -> dict[int, list[dict]]:
+    """Build per-person tracks from a tracker that already assigns stable IDs.
+
+    Unlike :func:`split_tracks` (which infers identity from geometry), this
+    consumes IDs produced by a real multi-object tracker — e.g. ultralytics
+    ``model.track(persist=True)`` (ByteTrack). ``frame_records[i]`` maps
+    ``track_id -> {keypoints}`` for every person present in frame ``i``.
+
+    Returns ``{track_id: pose_frames}`` padded with empty-keypoint frames so
+    every track spans all frames — the format the scorers accept. Preferred
+    over :func:`split_tracks` for crowded scenes, where greedy centroid
+    matching over-fragments (a real classroom yields one track per student
+    instead of dozens of fragments).
+    """
+    n = len(frame_records)
+    ids = {tid for rec in frame_records for tid in rec}
+    result: dict[int, list[dict]] = {}
+    for tid in sorted(ids):
+        frames = [
+            {"keypoints": rec[tid]} if tid in rec else dict(_EMPTY)
+            for rec in frame_records
+        ]
+        if sum(1 for f in frames if f["keypoints"]) >= min_frames:
+            result[tid] = frames
+    return result
+
+
 def primary_track(tracks: dict[int, list[dict]]) -> list[dict]:
     """The presenter: the track visible in the most frames (option A from a
     multi-person split). Returns an empty list when there are no tracks."""

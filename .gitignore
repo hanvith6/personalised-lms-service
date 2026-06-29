@@ -1,8 +1,12 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
+score_comparison.json
+lms.zip
 # transient pipeline artifacts (never store raw video/frames/audio as records)
 *.mp4
 *.wav

@@ -49,6 +49,32 @@ python3 -m pytest -q          # 45 tests, ~0.2s
 python3 -m pytest --cov=.     # ~99% on pure logic
 ```
 
+## Run the thin HTTP service (optional — exposes this dimension as an API)
+
+A small FastAPI wrapper (`api/`) exposes the dimension over REST, demonstrating
+the **AC-09 loop** (scores → gaps → path → completion events → adapted path) over
+HTTP — not just in the notebook. In-memory, local-first, no API keys.
+
+```bash
+pip install -r requirements-api.txt
+uvicorn api.main:app --reload --port 8400      # docs at http://localhost:8400/docs
+```
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET`  | `/health` | liveness |
+| `POST` | `/scores/{student_id}` | ingest 7 sub-skill scores → detect gaps → emit Module-5 event |
+| `GET`  | `/gaps/{student_id}` | ranked gaps |
+| `GET`  | `/gaps/{student_id}/summary` | totals + top-3 + critical count |
+| `POST` | `/path/generate/{student_id}` | LLM learning path from stored gaps |
+| `GET`  | `/path/{student_id}` | current path + progress % |
+| `POST` | `/path/event/{student_id}` | completion events → adapt path (accelerate / insert prereq) |
+| `GET`  | `/resources` | filtered seed library (`?skill=&difficulty=&resource_type=`) |
+
+The LLM uses local Ollama/Mistral (`:11434`) with a deterministic JSON-stub
+fallback, so the service answers even offline. Tests: `tests/test_api.py`
+(FastAPI `TestClient`, no live server needed).
+
 ## How a teammate plugs in their dimension
 
 1. Produce a `list[SubSkillScore]` (from `utils/taxonomy.py`) for your sub-skills.
@@ -72,5 +98,10 @@ services/
   gap_detector.py                     dimension-agnostic gap ranking
   path_generator.py                   LLM path + adaptive sequencing
   analytics_emit.py                   Module-5 emit stub
-tests/                                pytest suite (fakes only)
+api/
+  main.py                             FastAPI app (8 endpoints, §5)
+  schemas.py                          Pydantic request/response models
+  store.py                            in-memory per-student state
+  llm.py                              Ollama wrapper + offline JSON stub
+tests/                                pytest suite (fakes only) + test_api.py
 ```

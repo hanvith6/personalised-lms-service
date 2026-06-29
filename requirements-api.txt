@@ -1,0 +1,7 @@
+# Thin service wrapper deps (local Mac OK — these are light, unlike the Colab stack).
+# Run:  pip install -r requirements-api.txt
+#       uvicorn api.main:app --reload --port 8400
+fastapi==0.115.12
+uvicorn==0.34.0
+httpx==0.28.1          # required by fastapi.testclient for tests
+pydantic==2.11.3

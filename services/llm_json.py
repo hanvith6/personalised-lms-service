@@ -1,10 +1,14 @@
 """Robust JSON extraction from small-LLM output.
 
 Module 9 §3.2, dimension-agnostic. Small instruct models (e.g. Qwen2.5-3B)
-occasionally wrap JSON in markdown fences or trail a sentence, so we strip
-fences, json.loads, optionally validate, and retry up to `attempts` times.
+wrap JSON in markdown fences OR in surrounding prose ("Here is the rating: {...}.
+Hope this helps!"). We try, in order: strip fences + parse, then extract the
+first balanced {...}/[...] block from anywhere in the text and parse that.
 
-SECURITY: we NEVER eval/exec model output — JSON parsing only.
+SECURITY:
+  * We NEVER eval/exec model output — JSON parsing only.
+  * Block extraction is a single linear character scan (no regex backtracking),
+    so it is inherently ReDoS-safe even on adversarial output.
 """
 from __future__ import annotations
 
@@ -23,6 +27,56 @@ class LLMOutputError(Exception):
 def _strip(raw: str) -> str:
     """Remove surrounding markdown fences and whitespace."""
     return _FENCE.sub("", raw.strip()).strip()
+
+
+def _extract_balanced(text: str) -> str | None:
+    """Return the first balanced ``{...}`` or ``[...]`` block, or None.
+
+    String-aware: braces/brackets inside JSON string literals are ignored, and
+    escaped quotes are handled. Pure linear scan — ReDoS-safe, no regex.
+    """
+    start = None
+    open_ch = close_ch = ""
+    depth = 0
+    in_str = False
+    escape = False
+
+    for i, ch in enumerate(text):
+        if start is None:
+            if ch == "{" or ch == "[":
+                start = i
+                open_ch = ch
+                close_ch = "}" if ch == "{" else "]"
+                depth = 1
+            continue
+
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+
+        if ch == '"':
+            in_str = True
+        elif ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+
+    return None
+
+
+def _candidates(raw: str):
+    """Yield parse candidates in best-effort order for one LLM response."""
+    yield _strip(raw)                 # fenced / clean JSON
+    block = _extract_balanced(raw)    # JSON embedded in prose
+    if block is not None:
+        yield block
 
 
 def parse_llm_json(generate, prompt, attempts: int = 3, validate=None):
@@ -45,14 +99,15 @@ def parse_llm_json(generate, prompt, attempts: int = 3, validate=None):
     last_error = None
     for _ in range(attempts):
         raw = generate(prompt)
-        try:
-            obj = json.loads(_strip(raw))
-            if validate is not None:
-                validate(obj)
-            return obj
-        except (json.JSONDecodeError, ValueError, TypeError) as exc:
-            last_error = exc
-            continue
+        for candidate in _candidates(raw):
+            try:
+                obj = json.loads(candidate)
+                if validate is not None:
+                    validate(obj)
+                return obj
+            except (json.JSONDecodeError, ValueError, TypeError) as exc:
+                last_error = exc
+                continue
     raise LLMOutputError(
         f"failed to parse valid JSON after {attempts} attempts: {last_error}"
     )

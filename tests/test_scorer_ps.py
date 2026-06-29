@@ -67,6 +67,21 @@ def test_posture_missing_hips_uses_shoulders():
     assert s.score > 7  # level shoulders, no crash
 
 
+def test_posture_swaying_scores_below_steady():
+    # Same upright alignment; one speaker holds still, one drifts side to side.
+    steady = [_frame(left_shoulder=(40, 100, 0.9), right_shoulder=(60, 100, 0.9),
+                     left_hip=(42, 200, 0.9), right_hip=(58, 200, 0.9))] * 6
+    swaying = [_frame(left_shoulder=(40 + 12 * i, 100, 0.9),
+                      right_shoulder=(60 + 12 * i, 100, 0.9),
+                      left_hip=(42 + 12 * i, 200, 0.9),
+                      right_hip=(58 + 12 * i, 200, 0.9))
+               for i in (0, 1, 0, -1, 0, 1)]
+    steady_score = score_posture(steady).score
+    sway_score = score_posture(swaying).score
+    assert steady_score > sway_score
+    assert score_posture(swaying).detail["sway"] > 0
+
+
 # --- speech_pace ---------------------------------------------------------------
 
 def test_pace_silence_zero():

@@ -56,16 +56,38 @@ def score_eye_contact(pose_frames) -> SubSkillScore:
     )
 
 
-def score_posture(pose_frames) -> SubSkillScore:
-    """Shoulder-level symmetry blended with spine verticality, scaled 0-10.
+# Normalised body sway (std of shoulder-midpoint, in shoulder-widths) at which
+# the steadiness component reaches zero. ~0.5 shoulder-widths of drift = very
+# fidgety. Tuned against real TEDx/panel footage so calm and fidgety speakers
+# land at clearly different scores instead of both pinning near 10.
+_SWAY_ZERO = 0.5
+# How much steadiness counts vs static alignment. Alignment alone saturated
+# (every upright torso scored ~9.6); steadiness is what discriminates delivery.
+_STEADINESS_WEIGHT = 0.45
 
-    Module 9 §2.3, scoped to Public Speaking. Falls back to shoulder symmetry
-    alone when the hips are not visible.
+
+def score_posture(pose_frames) -> SubSkillScore:
+    """Posture quality: static alignment blended with temporal steadiness, 0-10.
+
+    Module 9 §2.3, scoped to Public Speaking. Two signals:
+
+    * **alignment** (per frame) — level shoulders + vertical spine (falls back
+      to shoulder symmetry when the hips are not visible).
+    * **steadiness** (across frames) — how little the body sways, measured as
+      the spread of the shoulder midpoint in shoulder-width units. A grounded
+      speaker holds position; a nervous one drifts and shifts weight.
+
+    Alignment alone saturates (any upright torso scores ~9.6), so a calm and a
+    fidgety speaker were indistinguishable. Adding steadiness makes the metric
+    discriminate. Steadiness defaults to 1.0 when fewer than two frames are
+    scorable (a single still frame has nothing to sway).
     """
     if not pose_frames:
         return SubSkillScore("posture", 0.0, ScoreSource.POSE, {"reason": "no person"})
 
-    frame_scores: list[float] = []
+    align_scores: list[float] = []
+    mids: list[tuple[float, float]] = []
+    widths: list[float] = []
     for frame in pose_frames:
         kp = frame.get("keypoints", {})
         ls, rs = kp.get("left_shoulder"), kp.get("right_shoulder")
@@ -80,16 +102,32 @@ def score_posture(pose_frames) -> SubSkillScore:
             sh_mid_y, hip_mid_y = (ls[1] + rs[1]) / 2, (lh[1] + rh[1]) / 2
             height = abs(sh_mid_y - hip_mid_y) or 1.0
             vert = 1.0 - min(1.0, abs(sh_mid_x - hip_mid_x) / height)  # 1.0 = vertical spine
-            frame_scores.append(0.5 * level + 0.5 * vert)
+            align_scores.append(0.5 * level + 0.5 * vert)
         else:
-            frame_scores.append(level)
+            align_scores.append(level)
+        mids.append(((ls[0] + rs[0]) / 2, (ls[1] + rs[1]) / 2))
+        widths.append(shoulder_w)
 
-    if not frame_scores:
+    if not align_scores:
         return SubSkillScore("posture", 0.0, ScoreSource.POSE, {"reason": "torso not visible"})
 
-    avg = float(np.mean(frame_scores))
-    return SubSkillScore("posture", clamp_score(avg * 10), ScoreSource.POSE,
-                         {"frames_scored": len(frame_scores)})
+    alignment = float(np.mean(align_scores))
+
+    if len(mids) >= 2:
+        unit = float(np.median(widths)) or 1.0
+        xs = [m[0] / unit for m in mids]
+        ys = [m[1] / unit for m in mids]
+        sway = (float(np.std(xs)) + float(np.std(ys))) / 2.0
+        steadiness = max(0.0, 1.0 - sway / _SWAY_ZERO)
+    else:
+        sway, steadiness = 0.0, 1.0
+
+    score = (1.0 - _STEADINESS_WEIGHT) * alignment + _STEADINESS_WEIGHT * steadiness
+    return SubSkillScore("posture", clamp_score(score * 10), ScoreSource.POSE,
+                         {"frames_scored": len(align_scores),
+                          "alignment": round(alignment, 3),
+                          "steadiness": round(steadiness, 3),
+                          "sway": round(sway, 3)})
 
 
 # --- Audio scorers -------------------------------------------------------------

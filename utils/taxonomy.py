@@ -17,6 +17,7 @@ class ScoreSource(Enum):
     POSE = "pose"      # YOLOv8-pose keypoints
     AUDIO = "audio"    # Librosa / Whisper features
     LLM = "llm"        # transcript analysis by an injected LLM
+    VISION = "vision"  # frame analysis other than pose (e.g. on-screen slides)
     STUB = "stub"      # a module this dimension does not own (mocked)
 
 

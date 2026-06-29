@@ -290,3 +290,69 @@ def score_opening_closing(transcript: str, llm_generate) -> SubSkillScore:
         "opening_closing_impact", clamp_score(score), ScoreSource.LLM,
         {"justification": justification},
     )
+
+
+# --- Audience engagement (real, from audio reactions) --------------------------
+#
+# Module 8 (Community & Group Discussion) owns the full version. Until it exists,
+# this is a REAL best-effort proxy from the talk's own audio: applause and
+# laughter are broadband, noise-like, high-energy bursts the notebook detects via
+# spectral flatness + RMS. A talk that repeatedly earns reactions engages its
+# audience. NOT a mock — it scores 0 honestly when there are no reactions.
+
+# A reaction every ~45s and ~5% of runtime spent in reactions reads as strongly
+# engaged; these anchor the 0-1 normalisation.
+_ENGAGE_RATE_FULL = 60.0 / 45.0   # reactions per minute that maps to full marks
+_ENGAGE_COVER_FULL = 0.05         # fraction of runtime in reactions for full marks
+
+
+def score_audience_engagement(reaction_events: int, reaction_seconds: float,
+                              duration_s: float) -> SubSkillScore:
+    """Audience engagement from detected applause/laughter reactions, 0-10.
+
+    ``reaction_events`` is the count of distinct reaction bursts; ``reaction_seconds``
+    their total duration. Blends reaction *frequency* and *coverage*. Returns 0.0
+    (not a mock) when the audio carried no reactions.
+    """
+    if duration_s <= 0:
+        return SubSkillScore("audience_engagement", 0.0, ScoreSource.AUDIO,
+                             {"reason": "no audio"})
+    rate = reaction_events / (duration_s / 60.0)
+    coverage = reaction_seconds / duration_s
+    norm = 0.6 * min(1.0, rate / _ENGAGE_RATE_FULL) + 0.4 * min(1.0, coverage / _ENGAGE_COVER_FULL)
+    return SubSkillScore(
+        "audience_engagement", clamp_score(norm * 10), ScoreSource.AUDIO,
+        {"reaction_events": reaction_events, "reactions_per_min": round(rate, 2),
+         "coverage": round(coverage, 3)})
+
+
+# --- Slide structure (real, from on-screen slide detection) --------------------
+#
+# Module 4 (Auto-Video-Content) owns the full version (it has the deck). From the
+# video alone we can only score slides that are actually ON SCREEN. When none are
+# detected (a speaker-only talk), the result is marked ``applicable=False`` and the
+# notebook EXCLUDES it — an honest "no data", never a fabricated number.
+
+_SLIDE_PRESENT_MIN = 0.30   # >=30% of frames must show a slide to score it
+_SLIDE_TEXT_IDEAL = 0.22    # ideal fraction of slide area covered by text (bullets)
+_SLIDE_TEXT_TOL = 0.22      # tolerance band around the ideal
+
+
+def score_slide_structure(frames_with_slide: int, total_frames: int,
+                          n_transitions: int, mean_text_fill: float) -> SubSkillScore:
+    """Slide quality from detected on-screen slides, 0-10 (or not-applicable).
+
+    ``frames_with_slide`` / ``total_frames`` gauge whether slides are present;
+    ``n_transitions`` is the number of slide changes; ``mean_text_fill`` is the
+    average fraction of slide area covered by text. Penalises text-walls and
+    empty slides (distance from an ideal bullet density). Marks
+    ``applicable=False`` when no slides are detected so the caller can drop it.
+    """
+    if total_frames <= 0 or (frames_with_slide / total_frames) < _SLIDE_PRESENT_MIN:
+        return SubSkillScore("slide_structure", 0.0, ScoreSource.VISION,
+                             {"applicable": False, "reason": "no slides detected in video"})
+    text_quality = 1.0 - min(1.0, abs(mean_text_fill - _SLIDE_TEXT_IDEAL) / _SLIDE_TEXT_TOL)
+    return SubSkillScore(
+        "slide_structure", clamp_score(text_quality * 10), ScoreSource.VISION,
+        {"applicable": True, "slide_coverage": round(frames_with_slide / total_frames, 3),
+         "transitions": n_transitions, "mean_text_fill": round(mean_text_fill, 3)})

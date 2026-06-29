@@ -21,3 +21,6 @@ sample_clip*
 .env.local
 *.env
 !.env.example
+
+# YouTube cookies for yt-dlp (credential — never commit)
+cookies.txt

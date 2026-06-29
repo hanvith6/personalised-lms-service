@@ -30,7 +30,7 @@ echo "==> Committing on '$BRANCH': $MSG"
 git add -A
 git commit -q -m "$MSG"
 
-echo "==> Pushing to origin/$BRANCH…"
+echo "==> Pushing to origin/${BRANCH} ..."
 git push --quiet origin "$BRANCH"
 
 echo "✅ Pushed. On Colab: just Run All — cell 2 will git pull the latest."

@@ -10,10 +10,12 @@ with only numpy — and keeps the heavy stack off the local machine.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 
 from utils.taxonomy import SubSkillScore, ScoreSource, clamp_score
-from services.llm_json import parse_llm_json
+from services.llm_json import LLMOutputError, parse_llm_json
 
 # --- Pose helpers --------------------------------------------------------------
 
@@ -185,13 +187,72 @@ def _sanitize_segment(text: str, max_chars: int = 500) -> str:
 
 
 def _impact_prompt(opening: str, closing: str) -> str:
+    # Small instruct models (Qwen2.5-3B) follow a one-shot example far more
+    # reliably than an abstract schema, and a trailing "JSON:" cue nudges them
+    # to emit the object immediately instead of prefacing it with prose.
     return (
         "You are a public-speaking coach. Rate the IMPACT of a talk's opening and "
-        "closing on a 0-10 scale (10 = memorable, audience-grabbing).\n"
-        "Return ONLY a JSON object, no markdown, no prose: "
-        '{"score": <number 0-10>, "justification": "<one sentence>"}\n\n'
-        f"OPENING: {_sanitize_segment(opening)}\n\nCLOSING: {_sanitize_segment(closing)}"
+        "closing on an integer 0-10 scale (10 = memorable, audience-grabbing).\n"
+        'Respond with ONLY one JSON object, exactly these keys: '
+        '{"score": <integer 0-10>, "justification": "<one sentence>"}\n'
+        'Example: {"score": 7, "justification": "Strong hook, but the closing trails off."}\n\n'
+        f"OPENING: {_sanitize_segment(opening)}\n\n"
+        f"CLOSING: {_sanitize_segment(closing)}\n\nJSON:"
     )
+
+
+# Keys a small model may use instead of the requested "score".
+_SCORE_KEYS = {"score", "rating", "impact", "impact_score", "overall",
+               "overall_score", "value"}
+
+
+def _coerce_num(v) -> float:
+    """Pull a number out of an int/float or a string like "7", "7.5", "8/10"."""
+    if isinstance(v, bool):
+        raise ValueError("bool is not a score")
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        m = re.search(r"-?\d+(?:\.\d+)?", v)
+        if m:
+            return float(m.group())
+    raise ValueError(f"no numeric score in {v!r}")
+
+
+def _extract_score(obj) -> float:
+    """Find a 0-10 score in a parsed LLM object, tolerant of how a small model
+    phrases it: alternate/cased keys, string values, or nested opening/closing
+    objects (whose scores are averaged). Raises ValueError when none is found."""
+    if not isinstance(obj, dict):
+        raise ValueError("not a JSON object")
+    for k, v in obj.items():
+        if k.lower().replace(" ", "_") in _SCORE_KEYS:
+            try:
+                return _coerce_num(v)
+            except ValueError:
+                pass
+    # Nested case: {"opening": {"score": 6}, "closing": {"score": 8}} -> mean.
+    nested = []
+    for v in obj.values():
+        if isinstance(v, dict):
+            try:
+                nested.append(_extract_score(v))
+            except ValueError:
+                pass
+    if nested:
+        return sum(nested) / len(nested)
+    raise ValueError("missing 'score'")
+
+
+def _score_from_prose(text: str) -> float | None:
+    """Last resort when the model returns no JSON: read a score from phrasing
+    like "score: 7", "7/10", or "7 out of 10". Returns None if not found."""
+    for pat in (r"score[^\d]{0,10}(\d+(?:\.\d+)?)",
+                r"(\d+(?:\.\d+)?)\s*(?:/\s*10|out of 10)"):
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            return float(m.group(1))
+    return None
 
 
 def score_opening_closing(transcript: str, llm_generate) -> SubSkillScore:
@@ -199,6 +260,9 @@ def score_opening_closing(transcript: str, llm_generate) -> SubSkillScore:
 
     Module 9 §2.4, scoped to Public Speaking. Short transcripts short-circuit to
     0.0 without calling the LLM. `llm_generate` is a ``(prompt) -> str`` callable.
+    Tolerant of how small models phrase the result (alternate keys, string
+    scores, nested objects) and falls back to reading a score from prose before
+    giving up — so a real LLM run produces a real score instead of crashing.
     """
     words = transcript.split()
     if len(words) < _MIN_WORDS:
@@ -208,13 +272,21 @@ def score_opening_closing(transcript: str, llm_generate) -> SubSkillScore:
     quarter = max(1, len(words) // 4)
     opening = " ".join(words[:quarter])
     closing = " ".join(words[-quarter:])
+    prompt = _impact_prompt(opening, closing)
 
-    def _validate(obj):
-        if not isinstance(obj, dict) or "score" not in obj:
-            raise ValueError("missing 'score'")
+    try:
+        obj = parse_llm_json(llm_generate, prompt, attempts=3, validate=_extract_score)
+        score = _extract_score(obj)
+        justification = obj.get("justification", "") if isinstance(obj, dict) else ""
+    except LLMOutputError:
+        # No valid JSON in 3 tries — try once more and read a score from prose.
+        raw = llm_generate(prompt)
+        score = _score_from_prose(raw)
+        if score is None:
+            raise
+        justification = raw.strip()[:200]
 
-    obj = parse_llm_json(llm_generate, _impact_prompt(opening, closing), attempts=3, validate=_validate)
     return SubSkillScore(
-        "opening_closing_impact", clamp_score(float(obj["score"])), ScoreSource.LLM,
-        {"justification": obj.get("justification", "")},
+        "opening_closing_impact", clamp_score(score), ScoreSource.LLM,
+        {"justification": justification},
     )

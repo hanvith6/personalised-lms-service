@@ -150,3 +150,41 @@ def test_opening_closing_malformed_raises():
     fake = _FakeLLM(["not json", "still not", "nope"])
     with pytest.raises(LLMOutputError):
         score_opening_closing(text, fake)
+
+
+# --- tolerance for how small models (Qwen2.5-3B) actually phrase the score ---
+
+_TEXT = " ".join(["word"] * 40)
+
+
+def test_opening_closing_alternate_key_rating():
+    fake = _FakeLLM(['{"rating": 6, "justification": "Decent open, weak close."}'])
+    assert score_opening_closing(_TEXT, fake).score == 6.0
+
+
+def test_opening_closing_cased_key():
+    fake = _FakeLLM(['{"Score": 9, "justification": "Memorable."}'])
+    assert score_opening_closing(_TEXT, fake).score == 9.0
+
+
+def test_opening_closing_string_score_with_slash():
+    fake = _FakeLLM(['{"score": "7/10", "justification": "Good."}'])
+    assert score_opening_closing(_TEXT, fake).score == 7.0
+
+
+def test_opening_closing_nested_opening_closing_averaged():
+    fake = _FakeLLM(['{"opening": {"score": 6}, "closing": {"score": 8}}'])
+    assert score_opening_closing(_TEXT, fake).score == 7.0
+
+
+def test_opening_closing_prose_fallback():
+    # No JSON at all for 3 tries, then a prose number on the 4th call.
+    fake = _FakeLLM(["no json here", "still none", "nope",
+                     "I would give this a 7 out of 10 overall."])
+    s = score_opening_closing(_TEXT, fake)
+    assert s.score == 7.0
+
+
+def test_opening_closing_clamps_out_of_range():
+    fake = _FakeLLM(['{"score": 15}'])
+    assert score_opening_closing(_TEXT, fake).score == 10.0

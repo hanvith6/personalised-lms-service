@@ -15,3 +15,9 @@ lms.zip
 frames/
 sample_clip*
 .ipynb_checkpoints/
+
+# Secrets — never commit real tokens
+.env
+.env.local
+*.env
+!.env.example

@@ -88,3 +88,15 @@ def test_prose_wrapped_passes_validate():
     raw = 'My assessment: {"score": 8, "justification": "clear arc"}. Thanks!'
     out = parse_llm_json(_gen([raw]), "p", attempts=3, validate=validate)
     assert out["score"] == 8
+
+
+def test_skips_first_block_without_key_finds_later_one():
+    """Qwen sometimes echoes the prompt object first, then the real answer."""
+    def validate(obj):
+        if "score" not in obj:
+            raise ValueError("missing 'score'")
+
+    raw = ('Echoing input: {"opening": "Good morning", "closing": "thank you"}\n'
+           'My rating: {"score": 7, "justification": "solid"}')
+    out = parse_llm_json(_gen([raw]), "p", attempts=3, validate=validate)
+    assert out["score"] == 7

@@ -29,11 +29,13 @@ def _strip(raw: str) -> str:
     return _FENCE.sub("", raw.strip()).strip()
 
 
-def _extract_balanced(text: str) -> str | None:
-    """Return the first balanced ``{...}`` or ``[...]`` block, or None.
+def _iter_blocks(text: str):
+    """Yield every balanced ``{...}`` / ``[...]`` block, left to right.
 
     String-aware: braces/brackets inside JSON string literals are ignored, and
-    escaped quotes are handled. Pure linear scan — ReDoS-safe, no regex.
+    escaped quotes are handled. Pure linear scan — ReDoS-safe, no regex. Yields
+    ALL top-level blocks so a later ``{"score": ...}`` is still found even when
+    the model emits an earlier, unrelated object first.
     """
     start = None
     open_ch = close_ch = ""
@@ -44,10 +46,7 @@ def _extract_balanced(text: str) -> str | None:
     for i, ch in enumerate(text):
         if start is None:
             if ch == "{" or ch == "[":
-                start = i
-                open_ch = ch
-                close_ch = "}" if ch == "{" else "]"
-                depth = 1
+                start, open_ch, close_ch, depth = i, ch, ("}" if ch == "{" else "]"), 1
             continue
 
         if in_str:
@@ -66,17 +65,14 @@ def _extract_balanced(text: str) -> str | None:
         elif ch == close_ch:
             depth -= 1
             if depth == 0:
-                return text[start:i + 1]
-
-    return None
+                yield text[start:i + 1]
+                start = None  # reset; keep scanning for the next block
 
 
 def _candidates(raw: str):
     """Yield parse candidates in best-effort order for one LLM response."""
-    yield _strip(raw)                 # fenced / clean JSON
-    block = _extract_balanced(raw)    # JSON embedded in prose
-    if block is not None:
-        yield block
+    yield _strip(raw)            # fenced / clean JSON
+    yield from _iter_blocks(raw)  # every JSON block embedded in prose
 
 
 def parse_llm_json(generate, prompt, attempts: int = 3, validate=None):

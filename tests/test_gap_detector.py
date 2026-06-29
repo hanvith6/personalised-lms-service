@@ -1,6 +1,8 @@
 """Tests for dimension-agnostic gap detection."""
 from utils.taxonomy import SubSkillScore, ScoreSource
-from services.gap_detector import detect_gaps, GAP_THRESHOLD
+from services.gap_detector import (
+    detect_gaps, summarize_gaps, severity_band, GAP_THRESHOLD,
+)
 
 
 def _score(skill, value):
@@ -30,3 +32,37 @@ def test_boost_reorders_ranking():
 
 def test_threshold_boundary_excluded():
     assert detect_gaps([_score("a", GAP_THRESHOLD)], {}) == []
+
+
+# --- severity bands -----------------------------------------------------------
+
+def test_severity_band_thresholds():
+    assert severity_band(4.0) == "CRITICAL"   # score 2.0
+    assert severity_band(3.0) == "CRITICAL"   # score 3.0 (boundary)
+    assert severity_band(2.0) == "HIGH"       # score 4.0
+    assert severity_band(1.5) == "HIGH"       # boundary
+    assert severity_band(0.5) == "MODERATE"   # score 5.5
+
+
+# --- summarize_gaps -----------------------------------------------------------
+
+def test_summarize_gaps_counts_and_bands():
+    scores = [
+        _score("crit", 2.0),   # severity 4.0 -> CRITICAL
+        _score("high", 4.0),   # severity 2.0 -> HIGH
+        _score("mod", 5.5),    # severity 0.5 -> MODERATE
+        _score("ok", 8.0),     # not a gap
+    ]
+    gaps = detect_gaps(scores, {})
+    summary = summarize_gaps(gaps)
+    assert summary["total_gaps"] == 3
+    assert summary["critical_gaps"] == 1
+    assert summary["by_band"] == {"CRITICAL": 1, "HIGH": 1, "MODERATE": 1}
+    assert summary["top_gaps"][0] == "crit"   # highest priority first
+
+
+def test_summarize_empty():
+    assert summarize_gaps([]) == {
+        "total_gaps": 0, "critical_gaps": 0, "top_gaps": [],
+        "by_band": {"CRITICAL": 0, "HIGH": 0, "MODERATE": 0},
+    }

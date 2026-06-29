@@ -29,12 +29,11 @@ from api.schemas import (
 from dimensions.public_speaking.resource_seed_ps import PS_RESOURCES
 from dimensions.public_speaking.taxonomy_ps import DEMAND_BOOSTS
 from services.analytics_emit import emit_gap_profile_updated
-from services.gap_detector import detect_gaps
+from services.gap_detector import detect_gaps, summarize_gaps
 from services.path_generator import adapt_path, generate_learning_path
 from utils.taxonomy import Gap, ScoreSource, SubSkillScore, clamp_score
 
-DIMENSION = "public_speaking"
-CRITICAL_SEVERITY = 3.0  # a gap is "critical" when score <= 3.0 (severity >= 3.0)
+DIMENSION = "public_speaking"  # "critical" band lives in services.gap_detector
 
 _FRONTEND = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "index.html")
 
@@ -99,11 +98,11 @@ def get_gaps(student_id: str) -> GapsOut:
 @app.get("/gaps/{student_id}/summary", response_model=GapSummaryOut)
 def get_gap_summary(student_id: str) -> GapSummaryOut:
     gaps = store.get_gaps(student_id)
-    critical = [g for g in gaps if g.gap_severity >= CRITICAL_SEVERITY]
+    s = summarize_gaps(gaps, top_n=3)  # shared, dimension-agnostic helper
     return GapSummaryOut(
         student_id=student_id,
-        total_gaps=len(gaps),
-        critical_gaps=len(critical),
+        total_gaps=s["total_gaps"],
+        critical_gaps=s["critical_gaps"],
         top_3_gaps=[_gap_to_out(g) for g in gaps[:3]],
     )
 

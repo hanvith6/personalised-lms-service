@@ -11,16 +11,19 @@ from utils.taxonomy import ScoreSource
 
 # --- audience_engagement ------------------------------------------------------
 
-def test_engagement_no_audio_is_zero():
+def test_engagement_no_audio_not_applicable():
     s = score_audience_engagement(0, 0.0, 0.0)
-    assert s.score == 0.0
+    assert s.detail["applicable"] is False
     assert s.detail["reason"] == "no audio"
 
 
-def test_engagement_no_reactions_scores_zero_not_mock():
+def test_engagement_no_reactions_is_not_applicable():
+    # No detected applause/laughter means the audio carried NO audience signal —
+    # for lecture/panel/solo talks this is "not measurable", not a real 0.0 gap.
+    # The pipeline must EXCLUDE it (mirrors slide_structure / pose), never fake a 0.
     s = score_audience_engagement(0, 0.0, 180.0)
-    assert s.score == 0.0
     assert s.source == ScoreSource.AUDIO
+    assert s.detail["applicable"] is False
     assert s.detail["reaction_events"] == 0
 
 
@@ -28,6 +31,7 @@ def test_engagement_frequent_reactions_score_high():
     # 6 reactions + 12s of them over a 3-min talk -> strong engagement.
     s = score_audience_engagement(6, 12.0, 180.0)
     assert s.score > 8.0
+    assert s.detail["applicable"] is True
     assert s.detail["reactions_per_min"] == 2.0
 
 

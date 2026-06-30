@@ -96,7 +96,16 @@ def test_pace_ideal_high():
 
 
 def test_pace_too_fast_low():
-    assert score_speech_pace(250, 60).score < 3   # 250 wpm
+    assert score_speech_pace(250, 60).score < 3   # 250 wpm (auctioneer)
+
+
+def test_pace_fast_expressive_partial_credit():
+    # A fast-but-intelligible "expressive" speaker (~190 wpm) must not score
+    # like silence. Calibrated against baselines/Z0LhdQIhmzk (labeled
+    # "fast+expressive"), which previously collapsed to 0.0.
+    s190 = score_speech_pace(190, 60).score
+    assert 4.0 < s190 < 7.0          # fast, but clearly passing — not zero
+    assert s190 > score_speech_pace(0, 60).score   # strictly above silence
 
 
 # --- voice_stability -----------------------------------------------------------

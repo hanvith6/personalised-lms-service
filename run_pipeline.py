@@ -168,11 +168,12 @@ def score_one(video, pose_model, asr, mesh, llm, trim):
         prev = g.astype(int)
     s_slide = score_slide_structure(fws, len(paths), trans, float(np.mean(fills)) if fills else 0.0)
 
-    # pose sub-skills are EXCLUDED (not scored 0) when no presenter is visible —
+    # Sub-skills are EXCLUDED (not scored 0) when the signal is absent —
     # a missing measurement must not masquerade as a low score / false gap.
     scores = {"speech_pace": round(s_pace.score, 2),
-              "voice_stability": round(s_voice.score, 2),
-              "audience_engagement": round(s_aud.score, 2)}
+              "voice_stability": round(s_voice.score, 2)}
+    if s_aud.detail.get("applicable", True):
+        scores["audience_engagement"] = round(s_aud.score, 2)
     if s_eye.detail.get("applicable", True):
         scores["eye_contact"] = round(s_eye.score, 2)
     if s_post.detail.get("applicable", True):

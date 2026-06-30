@@ -138,7 +138,12 @@ def score_speech_pace(word_count: int, duration_s: float) -> SubSkillScore:
     """Words-per-minute mapped to a delivery-quality band, scaled 0-10.
 
     Module 9 §2.3, scoped to Public Speaking. Full marks for ~115-145 wpm, with
-    linear falloff to 0 at 70 wpm (too slow) and 190 wpm (too fast).
+    linear falloff to 0 at 70 wpm (too slow) and 240 wpm (too fast).
+
+    The too-fast zero-crossing sits at 240 wpm (auctioneer territory), not 190:
+    a fast-but-intelligible "expressive" speaker (~190 wpm) is suboptimal, not
+    silent, so it earns partial credit rather than collapsing to 0.0. Calibrated
+    against the "fast+expressive" baseline clip, which previously scored 0.0.
     """
     if word_count <= 0 or duration_s <= 0:
         return SubSkillScore("speech_pace", 0.0, ScoreSource.AUDIO, {"wpm": 0.0, "reason": "no speech"})
@@ -150,7 +155,7 @@ def score_speech_pace(word_count: int, duration_s: float) -> SubSkillScore:
     elif wpm < lo_ideal:
         score = 10.0 * (wpm - 70.0) / (lo_ideal - 70.0)
     else:
-        score = 10.0 * (190.0 - wpm) / (190.0 - hi_ideal)
+        score = 10.0 * (240.0 - wpm) / (240.0 - hi_ideal)
     return SubSkillScore("speech_pace", clamp_score(score), ScoreSource.AUDIO, {"wpm": round(wpm, 1)})
 
 
@@ -311,19 +316,28 @@ def score_audience_engagement(reaction_events: int, reaction_seconds: float,
     """Audience engagement from detected applause/laughter reactions, 0-10.
 
     ``reaction_events`` is the count of distinct reaction bursts; ``reaction_seconds``
-    their total duration. Blends reaction *frequency* and *coverage*. Returns 0.0
-    (not a mock) when the audio carried no reactions.
+    their total duration. Blends reaction *frequency* and *coverage*.
+
+    When the audio carries NO reactions, the measurement is marked
+    ``applicable=False`` and the pipeline EXCLUDES it (mirrors slide_structure /
+    pose) — for lecture, panel and solo-to-camera talks an absent applause signal
+    is "not measurable from this clip", not a real low score / false gap. Genuine
+    audience-reaction engagement is owned by Module 8.
     """
     if duration_s <= 0:
         return SubSkillScore("audience_engagement", 0.0, ScoreSource.AUDIO,
-                             {"reason": "no audio"})
+                             {"applicable": False, "reason": "no audio"})
     rate = reaction_events / (duration_s / 60.0)
     coverage = reaction_seconds / duration_s
+    if reaction_events <= 0:
+        return SubSkillScore("audience_engagement", 0.0, ScoreSource.AUDIO,
+                             {"applicable": False, "reason": "no reactions detected",
+                              "reaction_events": 0})
     norm = 0.6 * min(1.0, rate / _ENGAGE_RATE_FULL) + 0.4 * min(1.0, coverage / _ENGAGE_COVER_FULL)
     return SubSkillScore(
         "audience_engagement", clamp_score(norm * 10), ScoreSource.AUDIO,
-        {"reaction_events": reaction_events, "reactions_per_min": round(rate, 2),
-         "coverage": round(coverage, 3)})
+        {"applicable": True, "reaction_events": reaction_events,
+         "reactions_per_min": round(rate, 2), "coverage": round(coverage, 3)})
 
 
 # --- Slide structure (real, from on-screen slide detection) --------------------

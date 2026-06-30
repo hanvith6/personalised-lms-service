@@ -15,6 +15,7 @@ Run:  uvicorn api.main:app --reload --port 8400
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,15 @@ from fastapi.responses import FileResponse
 from api import store
 from api.llm import llm_generate
 from api.session import router as session_router
+from services import model_loader
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    model_loader.initialise()
+    status = "ok" if model_loader.MODELS.ready else "degraded"
+    print(f"[startup] models {status} — errors: {model_loader.MODELS.errors or 'none'}")
+    yield
 from api.schemas import (
     GapOut, GapsOut, GapSummaryOut, PathEventIn, PathGenerateIn, PathOut,
     ResourceOut, ScoresIn,
@@ -42,6 +52,7 @@ app = FastAPI(
     title="Personalised LMS — Public Speaking dimension",
     description="Thin Module 9 service wrapper (one dimension). Local-first, no API keys.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Permissive CORS for the local demo frontend (served same-origin below, but this

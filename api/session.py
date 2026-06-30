@@ -78,18 +78,21 @@ async def evaluate_session(
 
     try:
         # ── 2. Run calibrated PS pipeline ─────────────────────────────────────
-        try:
-            from run_pipeline import score_one
-        except ImportError as e:
-            raise HTTPException(status_code=503, detail=f"Pipeline not available: {e}")
+        from services.model_loader import MODELS
+        from run_pipeline import score_one
 
+        if not MODELS.ready:
+            raise HTTPException(status_code=503,
+                                detail=f"Models not ready: {MODELS.errors}")
         try:
-            result = score_one(mp4_path, trim=None)  # full video, no trim
+            result = score_one(mp4_path, MODELS.pose, MODELS.asr,
+                               MODELS.mesh, MODELS.llm, trim=None)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
 
-        raw_scores: dict = result.get("scores", {})
+        # score_one returns a flat dict: {skill: float, ..., "_meta": {...}}
         meta: dict = result.get("_meta", {})
+        raw_scores: dict = {k: v for k, v in result.items() if not k.startswith("_")}
 
         # ── 3. Store scores + run gap detection ───────────────────────────────
         sub_scores = [

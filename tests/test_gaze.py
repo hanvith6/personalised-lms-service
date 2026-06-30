@@ -63,3 +63,13 @@ def test_gaze_beats_head_pose_on_paper_reader():
     # proxy (nose between eyes) would have passed.
     paper_reader = score_gaze([{"x": 0.5, "y": 0.5 + DEFAULT_TOL_Y + 0.1}] * 10)
     assert paper_reader.score < 3.0
+
+
+def test_looking_up_is_not_penalised():
+    # Iris in the upper portion of the eye (y < 0.5) means the speaker is
+    # looking at the camera or screen above — still eye contact. Previously
+    # this scored 0.0 because the symmetric Y gate failed below centre.
+    # Calibrated against baselines/rW2r5uStgG0 whose gaze y values are all
+    # 0.0-0.48 (upper eye) yet it is a clearly engaged speaker.
+    looking_up = score_gaze([{"x": 0.5, "y": 0.2}] * 10)
+    assert looking_up.score > 8.0

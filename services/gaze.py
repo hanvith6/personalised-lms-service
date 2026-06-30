@@ -55,10 +55,12 @@ def score_gaze(
             continue
         counted += 1
         x_ok = abs(f["x"] - 0.5) <= tol_x
-        y_ok = abs(f["y"] - 0.5) <= tol_y
-        if f["y"] > 0.5 + tol_y:
+        # Y: only penalise downward gaze (at notes/floor). Looking up at the
+        # camera or screen is still eye contact — symmetric Y gate is wrong.
+        down = f["y"] > 0.5 + tol_y
+        if down:
             looking_down += 1
-        if x_ok and y_ok:
+        if x_ok and not down:
             forward += 1
 
     if counted == 0:

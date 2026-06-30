@@ -1,0 +1,226 @@
+{
+  "ab_pairs/V8eLdbKXGzk": {
+    "speech_pace": 2.67,
+    "voice_stability": 2.68,
+    "eye_contact": 8.66,
+    "posture": 6.87,
+    "opening_closing_impact": 7.0,
+    "_meta": {
+      "words": 82,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 19
+    },
+    "_label": "Project IDEA Good vs Bad (within-clip A/B)",
+    "_bucket": "ab_pairs"
+  },
+  "ab_pairs/S5c1susCPAE": {
+    "speech_pace": 0.0,
+    "voice_stability": 3.26,
+    "eye_contact": 10.0,
+    "posture": 6.24,
+    "opening_closing_impact": 5.0,
+    "_meta": {
+      "words": 29,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 3
+    },
+    "_label": "Husain Good/Bad cuts",
+    "_bucket": "ab_pairs"
+  },
+  "ab_pairs/8ghfgC_K0Fo": {
+    "speech_pace": 8.42,
+    "voice_stability": 4.39,
+    "eye_contact": 10.0,
+    "posture": 8.88,
+    "opening_closing_impact": 7.0,
+    "_meta": {
+      "words": 160,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 1
+    },
+    "_label": "Managing Nervousness",
+    "_bucket": "ab_pairs"
+  },
+  "ab_pairs/tEF2vNP3S9A": {
+    "speech_pace": 1.37,
+    "voice_stability": 6.3,
+    "eye_contact": 10.0,
+    "posture": 9.64,
+    "opening_closing_impact": 5.0,
+    "_meta": {
+      "words": 227,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 1
+    },
+    "_label": "Do's and Don'ts Slides",
+    "_bucket": "ab_pairs"
+  },
+  "ab_pairs/WXe2KE5C9ag": {
+    "speech_pace": 8.22,
+    "voice_stability": 3.07,
+    "opening_closing_impact": 5.0,
+    "slide_structure": 2.41,
+    "_meta": {
+      "words": 107,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 0
+    },
+    "_label": "Bad PPT exaggerated",
+    "_bucket": "ab_pairs"
+  },
+  "baselines/Z0LhdQIhmzk": {
+    "speech_pace": 5.26,
+    "voice_stability": 5.55,
+    "eye_contact": 6.36,
+    "posture": 9.08,
+    "opening_closing_impact": 8.0,
+    "_meta": {
+      "words": 190,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 14
+    },
+    "_label": "Gifted Labeling \u2014 fast+expressive",
+    "_bucket": "baselines"
+  },
+  "baselines/wbftlDzIALA": {
+    "speech_pace": 10.0,
+    "voice_stability": 3.45,
+    "eye_contact": 9.38,
+    "posture": 7.86,
+    "opening_closing_impact": 8.0,
+    "_meta": {
+      "words": 119,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 1
+    },
+    "_label": "Effects of Lying \u2014 slow+rigid",
+    "_bucket": "baselines"
+  },
+  "baselines/rW2r5uStgG0": {
+    "speech_pace": 10.0,
+    "voice_stability": 3.27,
+    "eye_contact": 7.67,
+    "posture": 7.64,
+    "opening_closing_impact": 6.0,
+    "_meta": {
+      "words": 129,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 4
+    },
+    "_label": "Power of Reading \u2014 structured",
+    "_bucket": "baselines"
+  },
+  "baselines/OMbNoo4mCcI": {
+    "speech_pace": 10.0,
+    "voice_stability": 4.11,
+    "eye_contact": 10.0,
+    "posture": 6.48,
+    "opening_closing_impact": 7.0,
+    "_meta": {
+      "words": 119,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 5
+    },
+    "_label": "Education For All \u2014 younger presenter",
+    "_bucket": "baselines"
+  },
+  "baselines/r01KsFLKdO4": {
+    "speech_pace": 8.95,
+    "voice_stability": 5.23,
+    "eye_contact": 8.0,
+    "posture": 9.53,
+    "opening_closing_impact": 6.0,
+    "_meta": {
+      "words": 155,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 1
+    },
+    "_label": "MIT OCW Cost-Benefit \u2014 natural cadence",
+    "_bucket": "baselines"
+  },
+  "multi_person/ZNTBAKAT_WQ": {
+    "speech_pace": 10.0,
+    "voice_stability": 5.14,
+    "eye_contact": 10.0,
+    "posture": 8.77,
+    "opening_closing_impact": 9.0,
+    "_meta": {
+      "words": 132,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 1
+    },
+    "_label": "MIT OCW Local vs Expert (2-4 ppl)",
+    "_bucket": "multi_person"
+  },
+  "multi_person/Ll8zzImnYOE": {
+    "speech_pace": 3.78,
+    "voice_stability": 4.86,
+    "eye_contact": 9.3,
+    "posture": 8.52,
+    "opening_closing_impact": 9.0,
+    "_meta": {
+      "words": 87,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 15
+    },
+    "_label": "Religious Right Panel (4-5 ppl)",
+    "_bucket": "multi_person"
+  },
+  "multi_person/dlC_f2jfDqI": {
+    "speech_pace": 7.16,
+    "voice_stability": 4.72,
+    "eye_contact": 10.0,
+    "posture": 9.59,
+    "opening_closing_impact": 8.0,
+    "_meta": {
+      "words": 172,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 11
+    },
+    "_label": "Health Literacy Panel (3-5 ppl)",
+    "_bucket": "multi_person"
+  },
+  "multi_person/depjUykp_wo": {
+    "speech_pace": 6.32,
+    "voice_stability": 6.85,
+    "eye_contact": 10.0,
+    "posture": 7.94,
+    "opening_closing_impact": 6.0,
+    "_meta": {
+      "words": 180,
+      "duration_s": 60.0,
+      "reactions": 0,
+      "tracks": 23
+    },
+    "_label": "STEAM Expo Panel (2-3 ppl)",
+    "_bucket": "multi_person"
+  },
+  "multi_person/_rmYgmJN1-M": {
+    "speech_pace": 6.64,
+    "voice_stability": 3.97,
+    "eye_contact": 10.0,
+    "posture": 7.61,
+    "opening_closing_impact": 8.0,
+    "_meta": {
+      "words": 162,
+      "duration_s": 54.9,
+      "reactions": 0,
+      "tracks": 1
+    },
+    "_label": "Prop 62 News Desk (2 ppl)",
+    "_bucket": "multi_person"
+  }
+}

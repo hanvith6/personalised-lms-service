@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse
 
 from api import store
 from api.llm import llm_generate
+from api.session import router as session_router
 from api.schemas import (
     GapOut, GapsOut, GapSummaryOut, PathEventIn, PathGenerateIn, PathOut,
     ResourceOut, ScoresIn,
@@ -51,6 +52,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(session_router)
 
 
 @app.get("/", include_in_schema=False)

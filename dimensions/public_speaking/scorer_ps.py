@@ -34,7 +34,7 @@ def score_eye_contact(pose_frames) -> SubSkillScore:
     ``{"keypoints": {name: (x, y, conf)}}`` using COCO names.
     """
     if not pose_frames:
-        return SubSkillScore("eye_contact", 0.0, ScoreSource.POSE, {"reason": "no person"})
+        return SubSkillScore("eye_contact", 0.0, ScoreSource.POSE, {"reason": "no person", "applicable": False})
 
     facing = 0
     counted = 0
@@ -49,7 +49,7 @@ def score_eye_contact(pose_frames) -> SubSkillScore:
             facing += 1
 
     if counted == 0:
-        return SubSkillScore("eye_contact", 0.0, ScoreSource.POSE, {"reason": "face not visible"})
+        return SubSkillScore("eye_contact", 0.0, ScoreSource.POSE, {"reason": "face not visible", "applicable": False})
 
     frac = facing / counted
     return SubSkillScore(
@@ -85,7 +85,7 @@ def score_posture(pose_frames) -> SubSkillScore:
     scorable (a single still frame has nothing to sway).
     """
     if not pose_frames:
-        return SubSkillScore("posture", 0.0, ScoreSource.POSE, {"reason": "no person"})
+        return SubSkillScore("posture", 0.0, ScoreSource.POSE, {"reason": "no person", "applicable": False})
 
     align_scores: list[float] = []
     mids: list[tuple[float, float]] = []
@@ -111,7 +111,7 @@ def score_posture(pose_frames) -> SubSkillScore:
         widths.append(shoulder_w)
 
     if not align_scores:
-        return SubSkillScore("posture", 0.0, ScoreSource.POSE, {"reason": "torso not visible"})
+        return SubSkillScore("posture", 0.0, ScoreSource.POSE, {"reason": "torso not visible", "applicable": False})
 
     alignment = float(np.mean(align_scores))
 

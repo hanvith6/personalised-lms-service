@@ -64,15 +64,26 @@ def make_llm():
     except Exception as e:
         print("Qwen unavailable:", e)
     import urllib.request
+    model = os.environ.get("OLLAMA_MODEL", "mistral")
+    # If the requested model isn't pulled, fall back to whatever IS available
+    # (e.g. dolphin-phi) instead of silently returning no LLM.
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=5) as r:
+            have = [m["name"] for m in json.loads(r.read()).get("models", [])]
+        if have and not any(model == h or h.startswith(model + ":") for h in have):
+            print(f"OLLAMA_MODEL '{model}' not pulled; using '{have[0]}'")
+            model = have[0]
+    except Exception:
+        pass
     def ollama(prompt):
-        body = json.dumps({"model": "mistral", "prompt": prompt, "stream": False}).encode()
+        body = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
         req = urllib.request.Request("http://localhost:11434/api/generate", data=body,
                                      headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=90) as r:
             return json.loads(r.read())["response"]
     try:
         ollama("ping")
-        print("LLM: Ollama/mistral")
+        print(f"LLM: Ollama/{model}")
         return ollama
     except Exception:
         print("LLM: none (opening_closing will be skipped, not faked)")
@@ -157,9 +168,15 @@ def score_one(video, pose_model, asr, mesh, llm, trim):
         prev = g.astype(int)
     s_slide = score_slide_structure(fws, len(paths), trans, float(np.mean(fills)) if fills else 0.0)
 
-    scores = {"eye_contact": round(s_eye.score, 2), "posture": round(s_post.score, 2),
-              "speech_pace": round(s_pace.score, 2), "voice_stability": round(s_voice.score, 2),
+    # pose sub-skills are EXCLUDED (not scored 0) when no presenter is visible —
+    # a missing measurement must not masquerade as a low score / false gap.
+    scores = {"speech_pace": round(s_pace.score, 2),
+              "voice_stability": round(s_voice.score, 2),
               "audience_engagement": round(s_aud.score, 2)}
+    if s_eye.detail.get("applicable", True):
+        scores["eye_contact"] = round(s_eye.score, 2)
+    if s_post.detail.get("applicable", True):
+        scores["posture"] = round(s_post.score, 2)
     if wc >= 12 and llm is not None:
         scores["opening_closing_impact"] = round(score_opening_closing(transcript, llm).score, 2)
     if s_slide.detail.get("applicable"):

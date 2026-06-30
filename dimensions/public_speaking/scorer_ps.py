@@ -160,10 +160,17 @@ def score_speech_pace(word_count: int, duration_s: float) -> SubSkillScore:
 
 
 def score_voice_stability(f0_series, rms_series) -> SubSkillScore:
-    """Inverse of pitch + energy variation, scaled 0-10 (steadier = higher).
+    """Voice clarity + energy consistency, scaled 0-10.
 
-    Module 9 §2.3, scoped to Public Speaking. `f0_series` is per-frame
-    fundamental frequency (0 where unvoiced); `rms_series` is per-frame energy.
+    Module 9 §2.3. Rewards speakers who are clearly voiced and maintain
+    consistent volume. Pitch variation is intentionally excluded — expressive
+    speakers naturally vary pitch and should not be penalised for it.
+
+    Components:
+      voiced_ratio  (50%): fraction of frames with detected f0; rewards clear,
+                           continuous speech vs mumbling/long silent pauses.
+      rms_stability (50%): 1 - min(1, rms_cv/1.2); rewards consistent energy
+                           projection; zero-crossing at CV=1.2 (whispering→yelling).
     """
     f0 = np.asarray(f0_series, dtype=float)
     rms = np.asarray(rms_series, dtype=float)
@@ -172,13 +179,16 @@ def score_voice_stability(f0_series, rms_series) -> SubSkillScore:
     if f0_voiced.size == 0 or not np.any(rms > 1e-9):
         return SubSkillScore("voice_stability", 0.0, ScoreSource.AUDIO, {"reason": "silence"})
 
-    def _cv(a):
-        mean = float(np.mean(a))
-        return float(np.std(a) / mean) if mean > 1e-9 else 1.0
+    voiced_ratio = f0_voiced.size / max(f0.size, 1)
 
-    mean_cv = 0.5 * _cv(f0_voiced) + 0.5 * _cv(rms[rms > 1e-9])
-    score = 10.0 * (1.0 - min(1.0, mean_cv))
-    return SubSkillScore("voice_stability", clamp_score(score), ScoreSource.AUDIO, {"cv": round(mean_cv, 3)})
+    rms_nonzero = rms[rms > 1e-9]
+    rms_mean = float(np.mean(rms_nonzero))
+    rms_cv = float(np.std(rms_nonzero) / rms_mean) if rms_mean > 1e-9 else 1.0
+    rms_stability = 1.0 - min(1.0, rms_cv / 1.2)
+
+    score = 10.0 * (0.5 * voiced_ratio + 0.5 * rms_stability)
+    return SubSkillScore("voice_stability", clamp_score(score), ScoreSource.AUDIO,
+                         {"voiced_ratio": round(voiced_ratio, 3), "rms_cv": round(rms_cv, 3)})
 
 
 # --- LLM scorer ----------------------------------------------------------------

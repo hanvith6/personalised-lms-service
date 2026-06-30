@@ -115,16 +115,39 @@ def test_voice_silence_zero():
 
 
 def test_voice_steady_high():
+    # Fully voiced + constant energy -> max score
     f0 = np.full(50, 120.0)
     rms = np.full(50, 0.5)
     assert score_voice_stability(f0, rms).score > 8
 
 
-def test_voice_unstable_low():
-    rng = np.random.default_rng(0)
-    f0 = np.abs(rng.normal(120, 80, 200)) + 1
-    rms = np.abs(rng.normal(0.5, 0.6, 200)) + 1e-3
-    assert score_voice_stability(f0, rms).score < 6
+def test_voice_expressive_pitch_not_penalised():
+    # Expressive pitch variation (natural speech) should NOT drop below 6
+    rng = np.random.default_rng(1)
+    f0 = np.abs(rng.normal(150, 60, 200)) + 50   # wide pitch range — expressive
+    rms = np.full(200, 0.4)                        # but constant energy
+    s = score_voice_stability(f0, rms)
+    assert s.score > 6, f"expressive speaker unfairly penalised: {s.score}"
+
+
+def test_voice_low_voiced_ratio_scores_lower():
+    # Mostly silent / mumbling (10% voiced) + constant energy -> low-medium score
+    f0 = np.zeros(200)
+    f0[:20] = 120.0          # only 10% voiced
+    rms = np.full(200, 0.4)
+    s = score_voice_stability(f0, rms)
+    assert s.score < 6
+
+
+def test_voice_wild_energy_scores_below_steady():
+    # Whisper→yell swing should score meaningfully lower than a steady speaker
+    f0 = np.full(200, 120.0)
+    rms_wild = np.concatenate([np.full(100, 0.01), np.full(100, 5.0)])
+    rms_steady = np.full(200, 0.5)
+    wild  = score_voice_stability(f0, rms_wild).score
+    steady = score_voice_stability(f0, rms_steady).score
+    assert wild < steady
+    assert wild < 7    # penalised, not catastrophic
 
 
 # --- opening_closing (LLM, injected) ------------------------------------------
